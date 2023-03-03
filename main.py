@@ -30,5 +30,4 @@ def argument_parser():
 
 if __name__ == "__main__":
     args = argument_parser()
-    print(args)
     args.callback(args)
