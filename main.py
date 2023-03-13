@@ -1,9 +1,11 @@
 import argparse
 import logging
+import sys
 from datetime import timedelta
 
 from update_rate import main as sms_rate_update
 from sms_rerating_task import main as get_rerating_task
+from telegram_notify import send_rerating_notification
 
 
 logger = logging.getLogger(__name__)
@@ -23,8 +25,11 @@ def sms_rate_update_callback(arguments):
 def rerating_task_callback(arguments):
     logger.info('start rerating command')
     rerating_tasks = list(get_rerating_task(arguments.time_shift))
-    for task in rerating_tasks:
-        print(task)
+    if not arguments.notify:
+        for task in rerating_tasks:
+            print(task, file=sys.stderr)
+    else:
+        send_rerating_notification(rerating_tasks)
     logger.info('finished rerating command')
 
 
@@ -35,6 +40,7 @@ def argument_parser():
     sub_parser = parser.add_subparsers(
         help="list of allowed commands",
     )
+    parser.add_argument('--notify', required=False, type=bool, default=False)
     rate_cmd = sub_parser.add_parser(
         "rate",
         help="Set to zero rate for previous month for product "
