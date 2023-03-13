@@ -134,7 +134,7 @@ def get_filtered_task(tasks, time_shift):
     for task in tasks:
         logger.debug(f'task: {task}')
         in_progress = task.get('task_result', 'finished')
-        if check_updated_time(task, time_shift) and 'in progress' not in in_progress:
+        if check_updated_time(task, time_shift) and 'in progress:' not in in_progress:
             task_param_json = json.loads(task['task_param_json'])
             try:
                 is_autorerating = task_param_json['autorerating']
