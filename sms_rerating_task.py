@@ -12,6 +12,9 @@ from requests.auth import HTTPBasicAuth
 
 load_dotenv()
 
+log_dir = os.getenv('LOG_DIR')
+log_file = os.path.join(log_dir, __name__)
+
 logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('sms_rerating_task.log')
 file_formatter = logging.Formatter(

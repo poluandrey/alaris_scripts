@@ -1,12 +1,19 @@
 import argparse
 import logging
 import sys
+import os
+
 from datetime import timedelta
+from dotenv import load_dotenv
 
 from update_rate import main as sms_rate_update
 from sms_rerating_task import main as get_rerating_task
 from telegram_notify import send_rerating_notification
 
+
+load_dotenv()
+log_dir = os.getenv('LOG_DIR')
+log_file = os.path.join(log_dir, 'main.log')
 
 logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler(filename="main.log")
