@@ -9,8 +9,10 @@ from telegram_notify import send_rerating_notification
 
 
 logger = logging.getLogger(__name__)
-file_handler = logging.FileHandler(filename='main.log')
-file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler = logging.FileHandler(filename="main.log")
+file_formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
 logger.setLevel(logging.DEBUG)
@@ -23,14 +25,14 @@ def sms_rate_update_callback(arguments):
 
 
 def rerating_task_callback(arguments):
-    logger.info('start rerating command')
+    logger.info("start rerating command")
     rerating_tasks = list(get_rerating_task(arguments.time_shift))
     if not arguments.notify:
         for task in rerating_tasks:
             print(task, file=sys.stderr)
     else:
         send_rerating_notification(rerating_tasks)
-    logger.info('finished rerating command')
+    logger.info("finished rerating command")
 
 
 def argument_parser():
@@ -40,7 +42,7 @@ def argument_parser():
     sub_parser = parser.add_subparsers(
         help="list of allowed commands",
     )
-    parser.add_argument('--notify', required=False, type=bool, default=False)
+    parser.add_argument("--notify", required=False, type=bool, default=False)
     rate_cmd = sub_parser.add_parser(
         "rate",
         help="Set to zero rate for previous month for product "
@@ -52,18 +54,18 @@ def argument_parser():
     rate_cmd.set_defaults(callback=sms_rate_update_callback)
 
     rerating_task_cmd = sub_parser.add_parser(
-        'rerating-task',
-        help='return manual created rerating tasks that were updated. '
-             'By default check tasks that were updated 1 minute ago.'
-             'You could specify --time-shift option to change default behavior'
+        "rerating-task",
+        help="return manual created rerating tasks that were updated. "
+        "By default check tasks that were updated 1 minute ago."
+        "You could specify --time-shift option to change default behavior",
     )
     rerating_task_cmd.add_argument(
-        '--time-shift',
-        help='time in minutes before the present time truncated to minutes',
-        dest='time_shift',
+        "--time-shift",
+        help="time in minutes before the present time truncated to minutes",
+        dest="time_shift",
         required=False,
         type=lambda d: timedelta(minutes=int(d)),
-        default=timedelta(minutes=1)
+        default=timedelta(minutes=1),
     )
     rerating_task_cmd.set_defaults(callback=rerating_task_callback)
     return parser.parse_args()

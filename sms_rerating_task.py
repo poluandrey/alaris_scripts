@@ -143,7 +143,7 @@ def get_filtered_task(tasks, time_shift):
                 yield task
 
 
-def get_products_caption(dst_product_ids, products, carriers):
+def get_products_caption(dst_product_ids, products, carriers, accounts):
     if dst_product_ids == '':
         dst_product_ids = 'All products'
     elif dst_product_ids == '0':
@@ -152,12 +152,13 @@ def get_products_caption(dst_product_ids, products, carriers):
         dst_product_ids = get_product_description(
             dst_product_ids,
             products=products,
-            carriers=carriers
+            carriers=carriers,
+            accounts=accounts
         )
     return dst_product_ids
 
 
-def get_product_description(product_ids, products, carriers) -> List[str]:
+def get_product_description(product_ids, products, carriers, accounts) -> List[str]:
     logger.debug(f'product ids: {product_ids}')
     products_description = []
     for product_id in product_ids.split(','):
@@ -165,32 +166,35 @@ def get_product_description(product_ids, products, carriers) -> List[str]:
         if product_id == 0:
             products_description.append('include undefined product')
         else:
-            carrier_name, product_descr = retrieve_product_caption(
+            carrier_name, product_descr, currency_code = retrieve_product_caption(
                 int(product_id),
                 products=products,
-                carriers=carriers
+                carriers=carriers,
+                accounts=accounts
             )
-            products_description.append(f'{carrier_name} - {product_descr}')
+            products_description.append(f'{carrier_name} - {product_descr}({currency_code})')
     logger.debug(f'products description list: {products_description}')
     return products_description
 
 
-def retrieve_product_caption(product_id, products, carriers):
-    # product = list(filter(lambda x: x['id'] == int(product_id), products))[0]
+def retrieve_product_caption(product_id, products, carriers, accounts):
     for sms_product in products:
         if sms_product['id'] == product_id:
             product = sms_product
             break
     product_descr = product['descr']
     car_id = product['car_id']
+    acc_id = product['acc_id']
     carrier = list(filter(lambda x: x['id'] == car_id, carriers))[0]
     carrier_name = carrier['name']
+    account = list(filter(lambda x: x['id'] == acc_id, accounts))[0]
+    account_currency = account['currency_code']
     logger.debug(carrier_name)
     logger.debug(product_descr)
-    return carrier_name, product_descr
+    return carrier_name, product_descr, account_currency
 
 
-def extend_task_data(task, products, carriers):
+def extend_task_data(task, products, carriers, accounts):
     task_param_json: dict = task['task_param_json']
     try:
         task_status = TASK_STATUSES[task['task_status']]
@@ -213,8 +217,8 @@ def extend_task_data(task, products, carriers):
     except KeyError:
         rerating_end_time = 'undefined'
 
-    dst_product_ids = get_products_caption(dst_product_ids, products=products, carriers=carriers)
-    src_product_ids = get_products_caption(src_product_ids, products=products, carriers=carriers)
+    dst_product_ids = get_products_caption(dst_product_ids, products=products, carriers=carriers, accounts=accounts)
+    src_product_ids = get_products_caption(src_product_ids, products=products, carriers=carriers, accounts=accounts)
 
     task_start_time = task_param_json['task_start_time']
     if task_start_time == '':
@@ -246,9 +250,10 @@ def main(time_shift):
         with http_session as session:
             products = get_products(session)
             carriers = get_carriers(session)
+            accounts = get_accounts(session)
             tasks = get_tasks(session, task_type_id=11)
         for task in get_filtered_task(tasks, time_shift):
-            task = extend_task_data(task, products=products, carriers=carriers)
+            task = extend_task_data(task, products=products, carriers=carriers, accounts=accounts)
             yield task
     except HTTPError as err:
         if (

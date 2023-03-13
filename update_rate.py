@@ -26,10 +26,8 @@ logger.setLevel(logging.DEBUG)
 def authorize():
     url = urljoin(alaris_url, "auth")
     logger.debug(url)
-    logger.debug(f"{user}: {password}")
     resp = requests.get(url, auth=HTTPBasicAuth(username=user, password=password))
     resp.raise_for_status()
-    logger.debug(resp.text)
     return resp.json()["token"]
 
 
@@ -78,18 +76,21 @@ def main(rate_start_date=None, rate_end_date=None):
         )
     if not rate_end_date:
         rate_end_date = datetime.today().replace(day=1).strftime("%Y-%m-%d")
-    token = authorize()
-    current_rates = retrieve_sms_rate(
-        token,
-        product_id=14023,
-        rate_start_date=rate_start_date,
-        rate_end_date=rate_end_date,
-        typy="between",
-    )
-    mccmncs = [rate["mccmnc"] for rate in current_rates]
-    new_rates = create_rate_list_for_update(mccmncs, rate_start_date, rate_end_date)
-    update_report = update_sms_rate(token, product_id=14023, new_rates=new_rates)
-    logger.info(update_report["mini_report"])
+    try:
+        token = authorize()
+        current_rates = retrieve_sms_rate(
+            token,
+            product_id=14023,
+            rate_start_date=rate_start_date,
+            rate_end_date=rate_end_date,
+            typy="between",
+        )
+        mccmncs = [rate["mccmnc"] for rate in current_rates]
+        new_rates = create_rate_list_for_update(mccmncs, rate_start_date, rate_end_date)
+        update_report = update_sms_rate(token, product_id=14023, new_rates=new_rates)
+        logger.info(update_report["mini_report"])
+    except requests.HTTPError as err:
+        logger.exception(f"an http error\n{err}", stack_info=True)
 
 
 if __name__ == "__main__":
