@@ -1,8 +1,17 @@
 import argparse
+import logging
 from datetime import timedelta
 
 from update_rate import main as sms_rate_update
 from sms_rerating_task import main as get_rerating_task
+
+
+logger = logging.getLogger(__name__)
+file_handler = logging.FileHandler(filename='main.log')
+file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+logger.setLevel(logging.DEBUG)
 
 
 def sms_rate_update_callback(arguments):
@@ -12,9 +21,11 @@ def sms_rate_update_callback(arguments):
 
 
 def rerating_task_callback(arguments):
+    logger.info('start rerating command')
     rerating_tasks = list(get_rerating_task(arguments.time_shift))
     for task in rerating_tasks:
         print(task)
+    logger.info('finished rerating command')
 
 
 def argument_parser():

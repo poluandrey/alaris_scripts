@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any, List
+from typing import Any, List, Dict
 from urllib.parse import urljoin
 
 import requests
@@ -12,7 +12,7 @@ from requests.auth import HTTPBasicAuth
 
 load_dotenv()
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('sms_rerating_task.log')
 file_formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -82,6 +82,27 @@ def retrieve_account(session: requests.Session, acc_id: str):
     return acc_resp.json()
 
 
+def get_products(session: requests.Session) -> List[Dict]:
+    url = urljoin(ALARIS_DOMAIN, 'product')
+    prod_resp = session.get(url)
+    prod_resp.raise_for_status()
+    return prod_resp.json()
+
+
+def get_accounts(session: requests.Session) -> List[Dict]:
+    url = urljoin(ALARIS_DOMAIN, 'account')
+    acc_resp = session.get(url)
+    acc_resp.raise_for_status()
+    return acc_resp.json()
+
+
+def get_carriers(session: requests.Session) -> List[Dict]:
+    url = urljoin(ALARIS_DOMAIN, 'carrier')
+    car_resp = session.get(url)
+    car_resp.raise_for_status()
+    return car_resp.json()
+
+
 def make_session(token: str) -> requests.Session:
     logger.debug('start create new session')
     session = requests.Session()
@@ -122,47 +143,54 @@ def get_filtered_task(tasks, time_shift):
                 yield task
 
 
-def get_products_caption(dst_product_ids, session):
+def get_products_caption(dst_product_ids, products, carriers):
     if dst_product_ids == '':
         dst_product_ids = 'All products'
     elif dst_product_ids == '0':
         dst_product_ids = 'include undefined products'
     else:
-        dst_product_ids = get_product_description(dst_product_ids, session)
+        dst_product_ids = get_product_description(
+            dst_product_ids,
+            products=products,
+            carriers=carriers
+        )
     return dst_product_ids
 
 
-def get_product_description(product_ids, session) -> List[str]:
+def get_product_description(product_ids, products, carriers) -> List[str]:
     logger.debug(f'product ids: {product_ids}')
-    products = []
+    products_description = []
     for product_id in product_ids.split(','):
         logger.debug(f'collect info about product_id: {product_id}')
         if product_id == 0:
-            products.append('include undefined product')
+            products_description.append('include undefined product')
         else:
-            with session as s:
-                carrier_name, product_descr = retrieve_product_caption(product_id, s)
-                products.append(f'{carrier_name} - {product_descr}')
-    logger.debug(f'products description list: {products}')
-    return products
+            carrier_name, product_descr = retrieve_product_caption(
+                int(product_id),
+                products=products,
+                carriers=carriers
+            )
+            products_description.append(f'{carrier_name} - {product_descr}')
+    logger.debug(f'products description list: {products_description}')
+    return products_description
 
 
-def retrieve_product_caption(product_id, s):
-    product = retrieve_product(s, product_id)
+def retrieve_product_caption(product_id, products, carriers):
+    # product = list(filter(lambda x: x['id'] == int(product_id), products))[0]
+    for sms_product in products:
+        if sms_product['id'] == product_id:
+            product = sms_product
+            break
     product_descr = product['descr']
-    logger.debug(f'product_descr: {product_descr}')
-    acc_id = str(product['acc_id'])
-    logger.debug(f'account_id: {acc_id}')
-    product_account = retrieve_account(s, acc_id)
-    car_id = str(product_account['car_id'])
-    logger.debug(f'carrier id: {car_id}')
-    carrier = retrieve_carrier(s, car_id)
+    car_id = product['car_id']
+    carrier = list(filter(lambda x: x['id'] == car_id, carriers))[0]
     carrier_name = carrier['name']
-    logger.debug(f'carrier name: {carrier_name}')
+    logger.debug(carrier_name)
+    logger.debug(product_descr)
     return carrier_name, product_descr
 
 
-def extend_task_data(task, session):
+def extend_task_data(task, products, carriers):
     task_param_json: dict = task['task_param_json']
     try:
         task_status = TASK_STATUSES[task['task_status']]
@@ -185,8 +213,8 @@ def extend_task_data(task, session):
     except KeyError:
         rerating_end_time = 'undefined'
 
-    dst_product_ids = get_products_caption(dst_product_ids, session)
-    src_product_ids = get_products_caption(src_product_ids, session)
+    dst_product_ids = get_products_caption(dst_product_ids, products=products, carriers=carriers)
+    src_product_ids = get_products_caption(src_product_ids, products=products, carriers=carriers)
 
     task_start_time = task_param_json['task_start_time']
     if task_start_time == '':
@@ -216,9 +244,11 @@ def main(time_shift):
     http_session = make_session(token)
     try:
         with http_session as session:
+            products = get_products(session)
+            carriers = get_carriers(session)
             tasks = get_tasks(session, task_type_id=11)
         for task in get_filtered_task(tasks, time_shift):
-            task = extend_task_data(task, http_session)
+            task = extend_task_data(task, products=products, carriers=carriers)
             yield task
     except HTTPError as err:
         if (
@@ -237,4 +267,4 @@ def main(time_shift):
 
 
 if __name__ == '__main__':
-    main(time_shift=1)
+    main(time_shift=6500)
