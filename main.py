@@ -34,6 +34,7 @@ def sms_rate_update_callback(arguments):
 def rerating_task_callback(arguments):
     logger.info("start rerating command")
     rerating_tasks = list(get_rerating_task(arguments.time_shift))
+    logger.debug(rerating_tasks)
     if not arguments.notify:
         for task in rerating_tasks:
             print(task, file=sys.stderr)
