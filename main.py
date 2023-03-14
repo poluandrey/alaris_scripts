@@ -14,6 +14,19 @@ from telegram_notify import send_rerating_notification
 load_dotenv()
 log_dir = os.getenv('LOG_DIR')
 log_file = os.path.join(log_dir, 'main.log')
+env_log_level = os.getenv('LOG_LEVEL')
+log_levels = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR,
+}
+
+try:
+    log_level = log_levels[env_log_level]
+except KeyError:
+    print(f'Unexpected LOG_LEVEL value. Please provide one of {", ".join(list(log_levels.keys()))}')
+    sys.exit()
 
 logger = logging.getLogger(log_file)
 file_handler = logging.FileHandler(filename="main.log")
@@ -22,7 +35,7 @@ file_formatter = logging.Formatter(
 )
 file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(log_level)
 
 
 def sms_rate_update_callback(arguments):

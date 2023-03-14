@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import sys
 from datetime import datetime
 from typing import Any, List, Dict
 from urllib.parse import urljoin
@@ -14,6 +15,19 @@ load_dotenv()
 
 log_dir = os.getenv('LOG_DIR')
 log_file = os.path.join(log_dir, __name__)
+env_log_level = os.getenv('LOG_LEVEL')
+log_levels = {
+    'DEBUG': logging.DEBUG,
+    'INFO': logging.INFO,
+    'WARNING': logging.WARNING,
+    'ERROR': logging.ERROR,
+}
+
+try:
+    log_level = log_levels[env_log_level]
+except KeyError:
+    print(f'Unexpected LOG_LEVEL value. Please provide one of {", ".join(list(log_levels.keys()))}')
+    sys.exit()
 
 logger = logging.getLogger(log_file)
 file_handler = logging.FileHandler('sms_rerating_task.log')
@@ -22,7 +36,7 @@ file_formatter = logging.Formatter(
 )
 file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(log_level)
 
 ALARIS_DOMAIN = os.getenv('ALARIS_DOMAIN')
 ALARIS_USER = os.getenv('ALARIS_USER')
@@ -114,22 +128,22 @@ def make_session(token: str) -> requests.Session:
 
 
 def check_updated_time(task, time_shift):
-    logger.info('starting checking update time')
+    logger.debug('starting checking update time')
     end_time = datetime.utcnow().replace(second=0, microsecond=0)
     start_time = end_time - time_shift
     task_last_updated_time = datetime.strptime(
         task['task_last_update_time'], '%Y.%m.%d %H:%M:%S'
     )
     if start_time <= task_last_updated_time < end_time:
-        logger.info('finished checking update time')
+        logger.debug('finished checking update time')
         return True
-    logger.info('finished checking update time')
+    logger.debug('finished checking update time')
     return False
 
 
 def get_filtered_task(tasks, time_shift):
-    logger.info(time_shift)
-    logger.info('starting filtering tasks')
+    logger.debug(time_shift)
+    logger.debug('start filtering tasks')
     logger.debug(f'count of tasks for filtering {len(tasks)}')
     for task in tasks:
         logger.debug(f'task: {task}')
