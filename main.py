@@ -27,8 +27,8 @@ try:
 except KeyError:
     print(f'Unexpected LOG_LEVEL value. Please provide one of {", ".join(list(log_levels.keys()))}')
     sys.exit()
-logger = logging.getLogger(log_file)
-file_handler = logging.FileHandler(filename="main.log")
+logger = logging.getLogger(__name__)
+file_handler = logging.FileHandler(filename=log_file)
 file_formatter = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )

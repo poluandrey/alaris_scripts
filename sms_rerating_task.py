@@ -13,7 +13,7 @@ from alaris_api import get_token, get_tasks, get_products, get_accounts, get_car
 load_dotenv()
 
 log_dir = os.getenv('LOG_DIR')
-log_file = os.path.join(log_dir, __name__)
+log_file = os.path.join(log_dir, 'sms_rerating_task.log')
 env_log_level = os.getenv('LOG_LEVEL')
 log_levels = {
     'DEBUG': logging.DEBUG,
@@ -28,8 +28,8 @@ except KeyError:
     print(f'Unexpected LOG_LEVEL value. Please provide one of {", ".join(list(log_levels.keys()))}')
     sys.exit()
 
-logger = logging.getLogger(log_file)
-file_handler = logging.FileHandler('sms_rerating_task.log')
+logger = logging.getLogger(__name__)
+file_handler = logging.FileHandler(log_file)
 file_formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
@@ -71,6 +71,7 @@ def get_filtered_task(tasks, time_shift):
     logger.debug(time_shift)
     logger.debug('start filtering tasks')
     logger.debug(f'count of tasks for filtering {len(tasks)}')
+    filtered_task = []
     for task in tasks:
         logger.debug(f'task: {task}')
         in_progress = task.get('task_result', 'finished')
@@ -84,33 +85,34 @@ def get_filtered_task(tasks, time_shift):
             if is_autorerating != '1':
                 task.update({'task_param_json': task_param_json})
                 logger.info('finished filtering task')
-                yield task
+                filtered_task.append(task)
+    return filtered_task
 
 
-def get_products_caption(dst_product_ids, products, carriers, accounts):
-    if dst_product_ids == '':
-        dst_product_ids = 'All products'
-    elif dst_product_ids == '0':
-        dst_product_ids = 'include undefined products'
+def get_products_caption(product_ids, products, carriers, accounts):
+    if product_ids == '':
+        products_caption = 'All products'
+    elif product_ids == '0':
+        products_caption = 'include undefined products'
     else:
-        dst_product_ids = get_product_description(
-            dst_product_ids,
+        products_caption = get_product_caption(
+            product_ids,
             products=products,
             carriers=carriers,
             accounts=accounts
         )
-    return dst_product_ids
+    return products_caption
 
 
-def get_product_description(product_ids, products, carriers, accounts) -> List[str]:
-    logger.debug(f'product ids: {product_ids}')
+def get_product_caption(product_ids, products, carriers, accounts) -> List[str]:
+    logger.info(f'collect product caption for ids {product_ids}')
     products_description = []
     for product_id in product_ids.split(','):
         logger.debug(f'collect info about product_id: {product_id}')
         if product_id == 0:
             products_description.append('include undefined product')
         else:
-            carrier_name, product_descr, currency_code = retrieve_product_details(
+            carrier_name, product_descr, currency_code = collect_product_details(
                 int(product_id),
                 products=products,
                 carriers=carriers,
@@ -121,11 +123,15 @@ def get_product_description(product_ids, products, carriers, accounts) -> List[s
     return products_description
 
 
-def retrieve_product_details(product_id, products, carriers, accounts):
+def collect_product_details(product_id, products, carriers, accounts):
+    logger.debug(f'collect product details for product_id {product_id}')
     for sms_product in products:
         if sms_product['id'] == product_id:
             product = sms_product
             break
+    else:
+        logger.info(f'could not find product id {product_id} in alaris data')
+        return None, None, None
     product_descr = product['descr']
     car_id = product['car_id']
     acc_id = product['acc_id']
@@ -133,6 +139,7 @@ def retrieve_product_details(product_id, products, carriers, accounts):
     carrier_name = carrier['name']
     account = list(filter(lambda x: x['id'] == acc_id, accounts))[0]
     account_currency = account['currency_code']
+    logger.debug(account_currency)
     logger.debug(carrier_name)
     logger.debug(product_descr)
     return carrier_name, product_descr, account_currency
@@ -183,6 +190,7 @@ def extend_task_data(task, products, carriers, accounts):
 
 def main(time_shift):
     logger.info('start work')
+    logger.info(f'time_shift={time_shift}')
     try:
         token = get_token()
     except HTTPError as err:
@@ -192,14 +200,20 @@ def main(time_shift):
     http_session = make_session(token)
     try:
         with http_session as session:
-            products = get_products(session)
-            carriers = get_carriers(session)
-            accounts = get_accounts(session)
             tasks = get_tasks(session, task_type_id=11)
     except HTTPError as err:
         logger.exception(f'an HTTP error\n {err}', stack_info=True)
         return
-    for task in get_filtered_task(tasks, time_shift):
+    filtered_task = get_filtered_task(tasks, time_shift)
+    if filtered_task:
+        with http_session as session:
+            products = get_products(session)
+            carriers = get_carriers(session)
+            accounts = get_accounts(session)
+    else:
+        logger.info('did not find new tasks in the specified time delta')
+    for task in filtered_task:
+        logger.info(f'task for handling {task}')
         task = extend_task_data(task, products=products, carriers=carriers, accounts=accounts)
         yield task
     logger.info('finished work')
