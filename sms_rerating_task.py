@@ -1,7 +1,5 @@
 import json
-import logging
 import os
-import sys
 from datetime import datetime
 from typing import List
 
@@ -9,33 +7,11 @@ from dotenv import load_dotenv
 from requests import HTTPError
 
 from alaris_api import get_token, get_tasks, get_products, get_accounts, get_carriers, make_session
+from logger import create_logger
 
 load_dotenv()
+logger = create_logger(__name__, 'sms_rerating_task.log')
 
-log_dir = os.getenv('LOG_DIR')
-log_file = os.path.join(log_dir, 'sms_rerating_task.log')
-env_log_level = os.getenv('LOG_LEVEL')
-log_levels = {
-    'DEBUG': logging.DEBUG,
-    'INFO': logging.INFO,
-    'WARNING': logging.WARNING,
-    'ERROR': logging.ERROR,
-}
-
-try:
-    log_level = log_levels[env_log_level]
-except KeyError:
-    print(f'Unexpected LOG_LEVEL value. Please provide one of {", ".join(list(log_levels.keys()))}')
-    sys.exit()
-
-logger = logging.getLogger(__name__)
-file_handler = logging.FileHandler(log_file)
-file_formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-file_handler.setFormatter(file_formatter)
-logger.addHandler(file_handler)
-logger.setLevel(log_level)
 
 ALARIS_DOMAIN = os.getenv('ALARIS_DOMAIN')
 ALARIS_USER = os.getenv('ALARIS_USER')
@@ -84,8 +60,8 @@ def get_filtered_task(tasks, time_shift):
                 continue
             if is_autorerating != '1':
                 task.update({'task_param_json': task_param_json})
-                logger.info('finished filtering task')
                 filtered_task.append(task)
+    logger.info('finished filtering task')
     return filtered_task
 
 

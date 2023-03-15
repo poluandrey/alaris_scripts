@@ -1,40 +1,14 @@
 import argparse
-import logging
 import sys
-import os
 
 from datetime import timedelta
-from dotenv import load_dotenv
 
+from logger import create_logger
 from update_rate import main as sms_rate_update
 from sms_rerating_task import main as get_rerating_task
 from telegram_notify import send_rerating_notification
 
-
-load_dotenv()
-log_dir = os.getenv('LOG_DIR')
-log_file = os.path.join(log_dir, 'main.log')
-env_log_level = os.getenv('LOG_LEVEL')
-log_levels = {
-    'DEBUG': logging.DEBUG,
-    'INFO': logging.INFO,
-    'WARNING': logging.WARNING,
-    'ERROR': logging.ERROR,
-}
-
-try:
-    log_level = log_levels[env_log_level]
-except KeyError:
-    print(f'Unexpected LOG_LEVEL value. Please provide one of {", ".join(list(log_levels.keys()))}')
-    sys.exit()
-logger = logging.getLogger(__name__)
-file_handler = logging.FileHandler(filename=log_file)
-file_formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-file_handler.setFormatter(file_formatter)
-logger.addHandler(file_handler)
-logger.setLevel(log_level)
+logger = create_logger(__name__, 'main.log')
 
 
 def sms_rate_update_callback(arguments):
@@ -66,8 +40,8 @@ def argument_parser():
     rate_cmd = sub_parser.add_parser(
         "rate",
         help="Set to zero rate for previous month for product "
-        '"Retail Demo Client Premium". All open rate start '
-        "date will be set to the start of the month",
+             '"Retail Demo Client Premium". All open rate start '
+             "date will be set to the start of the month",
     )
     rate_cmd.add_argument("--rate-start-date", dest="rate_start_date", required=False)
     rate_cmd.add_argument("--rate-end-date", dest="rate_end_date", required=False)
@@ -76,8 +50,8 @@ def argument_parser():
     rerating_task_cmd = sub_parser.add_parser(
         "rerating-task",
         help="return manual created rerating tasks that were updated. "
-        "By default check tasks that were updated 1 minute ago."
-        "You could specify --time-shift option to change default behavior",
+             "By default check tasks that were updated 1 minute ago."
+             "You could specify --time-shift option to change default behavior",
     )
     rerating_task_cmd.add_argument(
         "--time-shift",
