@@ -22,9 +22,11 @@ def collect_rate_list_for_update(mccmnc_for_update, rate_start_date, rate_end_da
     return rates
 
 
-def update_sms_rate(rate_start_date, rate_end_date):
+def update_sms_rate(rate_start_date, rate_end_date, **kwargs):
     logger.info(f"rate_start_date: {rate_start_date}")
     logger.info(f"rate_end_date: {rate_end_date}")
+    logger.info(f"additional args {kwargs}")
+    codes = kwargs.get('codes')
     try:
         token = alaris_api.get_token()
     except HTTPError as err:
@@ -37,7 +39,7 @@ def update_sms_rate(rate_start_date, rate_end_date):
             product_id=14023,
             rate_start_date=rate_start_date,
             rate_end_date=rate_end_date,
-            codes=['502154'],
+            codes=codes,
             typy="between",
         )
         logger.debug(f"rate count for update {len(current_rates)}")
@@ -51,11 +53,5 @@ def update_sms_rate(rate_start_date, rate_end_date):
         logger.exception(f"an http error\n{err}", stack_info=True)
 
 
-# if __name__ == "__main__":
-#     start_date = (
-#         (datetime.today() - timedelta(days=datetime.today().day))
-#         .replace(day=1)
-#         .strftime("%Y-%m-%d")
-#     )
-#     end_date = datetime.today().replace(day=1).strftime("%Y-%m-%d")
-#     update_sms_rate(rate_start_date=start_date, rate_end_date=end_date)
+if __name__ == "__main__":
+    update_sms_rate(rate_start_date='2023-01-01', rate_end_date='2023-03-23', codes=[289088])
