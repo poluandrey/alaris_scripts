@@ -27,7 +27,8 @@ def update_sms_rate(rate_start_date, rate_end_date, **kwargs):
     logger.info(f"rate_start_date: {rate_start_date}")
     logger.info(f"rate_end_date: {rate_end_date}")
     logger.info(f"additional args {kwargs}")
-    mccmnc = ",".join(kwargs.get("codes", []))
+    codes = kwargs.get("codes", [])
+    mccmnc = '' if not codes else ','.join(codes)
 
     try:
         token = alaris_api.get_token()
@@ -44,10 +45,11 @@ def update_sms_rate(rate_start_date, rate_end_date, **kwargs):
         )
         logger.debug(f"rate count for update {len(current_rates)}")
         logger.debug(f"raw rates: {current_rates}")
-        mccmncs = [rate["mccmnc"] for rate in current_rates]
+        mccmncs = set(rate["mccmnc"] for rate in current_rates)
         new_rates = collect_rate_list_for_update(
             mccmncs, rate_start_date, rate_end_date
         )
+        logger.info(new_rates)
         update_report = alaris_api.update_sms_rate(
             session, product_id=14023, new_rates=new_rates
         )

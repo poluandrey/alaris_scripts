@@ -1,10 +1,12 @@
 import os
+import requests
 from typing import Any, List, Dict
 from urllib.parse import urljoin
 from dotenv import load_dotenv
 
-import requests
 from requests.auth import HTTPBasicAuth
+
+from logger import create_logger
 
 
 load_dotenv()
@@ -12,6 +14,8 @@ load_dotenv()
 ALARIS_DOMAIN = os.getenv("ALARIS_DOMAIN")
 ALARIS_USER = os.getenv("ALARIS_USER")
 ALARIS_PASSWD = os.getenv("PASSWORD")
+
+logger = create_logger(__name__, 'alaris_api.log')
 
 
 def get_token() -> str:
@@ -88,17 +92,20 @@ def make_session(token: str) -> requests.Session:
 
 def retrieve_sms_rate(session, product_id, **kwargs):
     url = urljoin(ALARIS_DOMAIN, "sms_rate")
-    params = {"product_id": product_id}
+    params = {"product_id": int(product_id)}
     params.update(kwargs)
     resp = session.get(url, params=params)
     resp.raise_for_status()
     return resp.json()
 
 
-def update_sms_rate(session, product_id, new_rates):
+def update_sms_rate(session: requests.Session, product_id, new_rates):
     url = urljoin(ALARIS_DOMAIN, "sms_rate")
 
     payload = {"product_id": product_id, "rows": new_rates}
     resp = session.post(url, json=payload)
+    logger.info(resp.request.url)
+    logger.info(resp.request.body)
+    logger.info(resp.request.headers)
     resp.raise_for_status()
     return resp.json()
