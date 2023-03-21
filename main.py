@@ -7,17 +7,24 @@ from logger import create_logger
 from sms_update_rate import update_sms_rate
 from sms_rerating_task import main as get_rerating_task
 from telegram_notify import send_rerating_notification, send_tg_message
+from alaris_enterprise_api import EAPIError
 
 logger = create_logger(__name__, "main.log")
 
 
 def sms_rate_update_callback(arguments):
     logger.info("start update rate command")
-    update_report = update_sms_rate(
-        rate_start_date=arguments.rate_start_date,
-        rate_end_date=arguments.rate_end_date,
-        codes=arguments.codes,
-    )
+    logger.info(arguments)
+    try:
+        update_report = update_sms_rate(
+            rate_start_date=arguments.rate_start_date,
+            rate_end_date=arguments.rate_end_date,
+            codes=arguments.codes,
+        )
+    except EAPIError as err:
+        logger.exception(f"get error from Enterprise API during retrieve rates\n{err}")
+        send_tg_message(f"get error from Enterprise API during retrieve rates\n{err}")
+        sys.exit()
     if arguments.notify:
         message = (
             "Completed updating rate for product Retail Demo Client Premium\n"
@@ -51,9 +58,8 @@ def argument_parser():
     parser.add_argument("--notify", required=False, type=bool, default=False)
     rate_cmd = sub_parser.add_parser(
         "rate",
-        help="Set to zero rate for previous month for product "
-        '"Retail Demo Client Premium". All open rate start '
-        "date will be set to the start of the month",
+        help="Set to zero rates and rate_close_date set to --rate-end-date"
+        "for rates between --rate-start-date and --rate-end-date",
     )
     rate_cmd.add_argument(
         "--rate-start-date",
@@ -73,8 +79,8 @@ def argument_parser():
         "--mccmnc-list",
         dest="codes",
         required=False,
-        nargs='+',
-        help="comma separated mccmnc list for filtering rate"
+        nargs="+",
+        help="comma separated mccmnc list for filtering rate",
     )
     rate_cmd.set_defaults(callback=sms_rate_update_callback)
 
