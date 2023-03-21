@@ -104,8 +104,7 @@ def update_sms_rate(session: requests.Session, product_id, new_rates):
 
     payload = {"product_id": product_id, "rows": new_rates}
     resp = session.post(url, json=payload)
-    logger.info(resp.request.url)
-    logger.info(resp.request.body)
-    logger.info(resp.request.headers)
+    logger.debug(resp.request.body)
+    logger.debug(resp.request.headers)
     resp.raise_for_status()
     return resp.json()

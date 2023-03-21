@@ -49,7 +49,7 @@ def update_sms_rate(rate_start_date, rate_end_date, **kwargs):
         new_rates = collect_rate_list_for_update(
             mccmncs, rate_start_date, rate_end_date
         )
-        logger.info(new_rates)
+        logger.debug(new_rates)
         update_report = alaris_api.update_sms_rate(
             session, product_id=14023, new_rates=new_rates
         )
